@@ -51,7 +51,7 @@ export function TimelineChart({ technique, totalWater }: TimelineChartProps) {
             dataPoints.push({
               time: t,
               water: Math.round(w),
-              description: i === numPoints ? step.description : undefined
+              description: i === numPoints ? step.description : ""
             });
           }
         }

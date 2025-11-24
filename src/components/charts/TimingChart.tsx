@@ -51,7 +51,7 @@ export function TimingChart() {
             dataPoints.push({
               time: t,
               water: Math.round(w),
-              step: i === numPoints ? step.description : undefined
+              step: i === numPoints ? step.description : ""
             });
           }
         }
