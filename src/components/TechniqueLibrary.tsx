@@ -5,12 +5,19 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { BREWING_METHODS } from "@/lib/brewing-data"
 import { getSortedBrewingMethods } from "@/lib/brewing-utils"
 import { useFavorites } from "@/hooks/useFavorites"
+import { useUnits } from "@/hooks/useUnits"
+import { formatCoffee, formatTemperature } from "@/lib/unit-conversion"
 import { ArrowRight, BookOpen, ChevronDown, ChevronUp, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-export function TechniqueLibrary() {
+interface TechniqueLibraryProps {
+  onNavigateToLearn?: () => void;
+}
+
+export function TechniqueLibrary({ onNavigateToLearn }: TechniqueLibraryProps = {}) {
   const { favorites, toggleFavorite, isFavorite } = useFavorites()
+  const { useImperial } = useUnits()
   const sortedMethods = getSortedBrewingMethods(favorites)
   const [expandedTechniques, setExpandedTechniques] = useState<Set<string>>(new Set())
 
@@ -148,19 +155,39 @@ export function TechniqueLibrary() {
                               </div>
                             )}
 
-                            <div className="grid grid-cols-3 gap-2 text-xs text-neutral-500 border-t border-neutral-100 dark:border-neutral-800 pt-3">
+                            <div className="grid grid-cols-3 gap-2 text-xs text-neutral-500 border-t border-neutral-100 dark:border-neutral-800 pt-3 mb-3">
                                <div>
                                  <span className="block font-bold text-orange-600 dark:text-orange-400">1:{tech.ratio}</span>
                                  Ratio
                                </div>
                                <div>
-                                 <span className="block font-bold text-neutral-900 dark:text-neutral-50">{tech.defaultCoffeeAmount}g</span>
+                                 <span className="block font-bold text-neutral-900 dark:text-neutral-50">{formatCoffee(tech.defaultCoffeeAmount, useImperial)}</span>
                                  Dose
                                </div>
                                <div>
                                  <span className="block font-bold text-neutral-900 dark:text-neutral-50">{(tech.totalTime / 60).toFixed(1)}m</span>
                                  Time
                                </div>
+                            </div>
+                            <div className="text-xs text-neutral-500 border-t border-neutral-100 dark:border-neutral-800 pt-3">
+                              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                <span><strong className="text-neutral-700 dark:text-neutral-300">Grind:</strong> {tech.grindSize}</span>
+                                <span><strong className="text-neutral-700 dark:text-neutral-300">Temp:</strong> {formatTemperature(tech.waterTemp, useImperial)}</span>
+                              </div>
+                              <p className="mt-2 text-neutral-400 dark:text-neutral-500 italic">
+                                Best with: Medium to light roasts. {onNavigateToLearn && (
+                                  <a
+                                    href="#learn"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      onNavigateToLearn();
+                                    }}
+                                    className="text-orange-600 dark:text-orange-400 hover:underline"
+                                  >
+                                    Learn more about roasts & beans →
+                                  </a>
+                                )}
+                              </p>
                             </div>
                           </div>
                         )

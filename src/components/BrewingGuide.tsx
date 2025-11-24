@@ -5,6 +5,9 @@ import { Timer } from "@/components/Timer"
 import { BREWING_METHODS, BrewingTechnique } from "@/lib/brewing-data"
 import { getSortedBrewingMethods } from "@/lib/brewing-utils"
 import { useFavorites } from "@/hooks/useFavorites"
+import { useUnits } from "@/hooks/useUnits"
+import { formatCoffee, formatWater, formatTemperature } from "@/lib/unit-conversion"
+import { TDSCalculator } from "@/components/TDSCalculator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Droplets, Thermometer, Clock, Scale, Star } from "lucide-react"
@@ -19,14 +22,21 @@ interface CalculatorState {
 
 interface BrewingGuideProps {
   calculatorState?: CalculatorState;
+  initialMethodId?: string;
+  initialTechniqueIndex?: number;
 }
 
-export function BrewingGuide({ calculatorState }: BrewingGuideProps) {
+export function BrewingGuide({ calculatorState, initialMethodId, initialTechniqueIndex }: BrewingGuideProps) {
   const { favorites, toggleFavorite, isFavorite } = useFavorites()
+  const { useImperial } = useUnits()
   const sortedMethods = getSortedBrewingMethods(favorites)
 
-  const [selectedMethodId, setSelectedMethodId] = useState(calculatorState?.methodId || BREWING_METHODS[0].id)
-  const [selectedTechniqueIndex, setSelectedTechniqueIndex] = useState(calculatorState?.techniqueIndex || 0)
+  const [selectedMethodId, setSelectedMethodId] = useState(
+    initialMethodId || calculatorState?.methodId || BREWING_METHODS[0].id
+  )
+  const [selectedTechniqueIndex, setSelectedTechniqueIndex] = useState(
+    initialTechniqueIndex ?? calculatorState?.techniqueIndex ?? 0
+  )
   const [currentTime, setCurrentTime] = useState(0)
 
   // Sync with calculator state when it changes
@@ -158,7 +168,7 @@ export function BrewingGuide({ calculatorState }: BrewingGuideProps) {
                   <div className="flex gap-4 text-sm">
                     <div className="flex flex-col items-center">
                       <Scale className="h-4 w-4 mb-1 text-neutral-400" />
-                      <span className="font-mono">{selectedTechnique.defaultCoffeeAmount}g</span>
+                      <span className="font-mono">{formatCoffee(selectedTechnique.defaultCoffeeAmount, useImperial)}</span>
                     </div>
                     <div className="flex flex-col items-center">
                        <Droplets className="h-4 w-4 mb-1 text-orange-400" />
@@ -166,7 +176,7 @@ export function BrewingGuide({ calculatorState }: BrewingGuideProps) {
                     </div>
                      <div className="flex flex-col items-center">
                        <Thermometer className="h-4 w-4 mb-1 text-red-400" />
-                       <span className="font-mono">{selectedTechnique.waterTemp}°C</span>
+                       <span className="font-mono">{formatTemperature(selectedTechnique.waterTemp, useImperial)}</span>
                     </div>
                      <div className="flex flex-col items-center">
                        <Clock className="h-4 w-4 mb-1 text-neutral-400" />
@@ -210,7 +220,7 @@ export function BrewingGuide({ calculatorState }: BrewingGuideProps) {
                             </div>
                             {step.waterAmount && (
                               <div className="bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300 px-2 py-1 rounded text-xs font-mono font-bold">
-                                {step.waterAmount}g
+                                {step.waterAmount ? formatWater(step.waterAmount, useImperial) : ''}
                               </div>
                             )}
                           </div>
@@ -240,9 +250,14 @@ export function BrewingGuide({ calculatorState }: BrewingGuideProps) {
                </p>
                {selectedTechnique.steps[currentStepIndex]?.waterAmount && (
                   <div className="mt-2 text-3xl font-bold text-orange-600 dark:text-orange-400 tabular-nums">
-                    → {selectedTechnique.steps[currentStepIndex].waterAmount}g
+                    → {selectedTechnique.steps[currentStepIndex].waterAmount ? formatWater(selectedTechnique.steps[currentStepIndex].waterAmount, useImperial) : ''}
                   </div>
                )}
+            </div>
+
+            {/* TDS Calculator */}
+            <div className="mt-6">
+              <TDSCalculator compact={true} />
             </div>
           </div>
         </div>

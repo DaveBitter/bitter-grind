@@ -1,6 +1,6 @@
 "use client"
 
-import { Calculator, Timer, BookOpen, BarChart3 } from "lucide-react"
+import { Calculator, Timer, BookOpen, GraduationCap } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface BottomNavProps {
@@ -12,7 +12,7 @@ const tabs = [
   { id: "calculator", icon: Calculator, label: "Calculator" },
   { id: "guide", icon: Timer, label: "Guide" },
   { id: "techniques", icon: BookOpen, label: "Techniques" },
-  { id: "data", icon: BarChart3, label: "Data" },
+  { id: "learn", icon: GraduationCap, label: "Learn" },
 ]
 
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {

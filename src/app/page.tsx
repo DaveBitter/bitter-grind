@@ -1,27 +1,75 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { RatioCalculator } from "@/components/RatioCalculator"
 import { BrewingGuide } from "@/components/BrewingGuide"
 import { TechniqueLibrary } from "@/components/TechniqueLibrary"
-import { RatioChart } from "@/components/charts/RatioChart"
-import { TimingChart } from "@/components/charts/TimingChart"
+import { TDSCalculator } from "@/components/TDSCalculator"
+import { ExtractionTheory } from "@/components/ExtractionTheory"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Coffee, Calculator, Timer, BookOpen, BarChart3, ArrowRight } from "lucide-react"
+import { Coffee, Calculator, Timer, BookOpen, ArrowRight, GraduationCap } from "lucide-react"
 import { ModeToggle } from "@/components/mode-toggle"
+import { UnitToggle } from "@/components/unit-toggle"
 import { BottomNav } from "@/components/BottomNav"
 import { BREWING_METHODS } from "@/lib/brewing-data"
+import { decodeRecipe, decodeAppState, encodeAppState } from "@/lib/recipe-encoder"
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState("calculator")
+  // Initialize state from URL on load
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const decoded = decodeAppState(params);
+      return decoded?.tab || "calculator";
+    }
+    return "calculator";
+  });
 
   // Shared state for calculator values
-  const [calculatorState, setCalculatorState] = useState({
-    methodId: BREWING_METHODS[0].id,
-    techniqueIndex: 0,
-    coffeeAmount: BREWING_METHODS[0].techniques[0].defaultCoffeeAmount,
-    ratio: BREWING_METHODS[0].techniques[0].ratio,
+  const [calculatorState, setCalculatorState] = useState(() => {
+    // Try to decode from URL on initial load
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const decoded = decodeAppState(params);
+      if (decoded?.methodId) {
+        return {
+          methodId: decoded.methodId,
+          techniqueIndex: decoded.techniqueIndex ?? 0,
+          coffeeAmount: decoded.coffeeAmount ?? BREWING_METHODS.find(m => m.id === decoded.methodId)?.techniques[0].defaultCoffeeAmount ?? BREWING_METHODS[0].techniques[0].defaultCoffeeAmount,
+          ratio: decoded.ratio ?? BREWING_METHODS.find(m => m.id === decoded.methodId)?.techniques[0].ratio ?? BREWING_METHODS[0].techniques[0].ratio,
+        };
+      }
+      // Fallback to old decodeRecipe for backwards compatibility
+      const oldDecoded = decodeRecipe(params);
+      if (oldDecoded) {
+        return oldDecoded;
+      }
+    }
+    // Default state
+    return {
+      methodId: BREWING_METHODS[0].id,
+      techniqueIndex: 0,
+      coffeeAmount: BREWING_METHODS[0].techniques[0].defaultCoffeeAmount,
+      ratio: BREWING_METHODS[0].techniques[0].ratio,
+    };
   })
+
+  // Update URL when tab or calculator state changes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const appState = {
+        tab: activeTab,
+        methodId: calculatorState.methodId,
+        techniqueIndex: calculatorState.techniqueIndex,
+        coffeeAmount: calculatorState.coffeeAmount,
+        ratio: calculatorState.ratio,
+      };
+      
+      const params = encodeAppState(appState);
+      const newUrl = `${window.location.pathname}?${params}`;
+      window.history.replaceState({}, "", newUrl);
+    }
+  }, [activeTab, calculatorState])
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-50 selection:bg-orange-100 dark:selection:bg-orange-900/30 flex flex-col">
@@ -42,6 +90,7 @@ export default function Home() {
               Precision Brewing
             </div>
             <div className="h-4 w-[1px] bg-neutral-200 dark:bg-neutral-800 hidden sm:block" />
+            <UnitToggle />
             <ModeToggle />
           </div>
         </div>
@@ -66,9 +115,9 @@ export default function Home() {
                   <BookOpen className="h-4 w-4 mr-2" />
                   Techniques
                 </TabsTrigger>
-                <TabsTrigger value="data" className="rounded-full px-6 h-full data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 data-[state=active]:backdrop-blur-sm data-[state=active]:shadow-sm dark:data-[state=active]:bg-orange-900/30 dark:data-[state=active]:text-orange-400">
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Data
+                <TabsTrigger value="learn" className="rounded-full px-6 h-full data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 data-[state=active]:backdrop-blur-sm data-[state=active]:shadow-sm dark:data-[state=active]:bg-orange-900/30 dark:data-[state=active]:text-orange-400">
+                  <GraduationCap className="h-4 w-4 mr-2" />
+                  Learn
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -79,37 +128,24 @@ export default function Home() {
                 calculatorState={calculatorState}
                 onCalculatorStateChange={setCalculatorState}
                 onNavigateToGuide={() => setActiveTab("guide")}
+                onNavigateToLearn={() => setActiveTab("learn")}
               />
             </TabsContent>
 
             <TabsContent value="guide" className="focus-visible:outline-none">
               <BrewingGuide
                 calculatorState={calculatorState}
+                initialMethodId={calculatorState.methodId}
+                initialTechniqueIndex={calculatorState.techniqueIndex}
               />
             </TabsContent>
 
             <TabsContent value="techniques" className="focus-visible:outline-none">
-              <TechniqueLibrary />
+              <TechniqueLibrary onNavigateToLearn={() => setActiveTab("learn")} />
             </TabsContent>
 
-            <TabsContent value="data" className="focus-visible:outline-none">
-              <div className="w-full max-w-4xl mx-auto space-y-12 p-4">
-                <div className="text-center space-y-2">
-                  <h2 className="text-3xl font-bold tracking-tight">Data Visualization</h2>
-                  <p className="text-neutral-500 dark:text-neutral-400">
-                    Visualize the science behind the brew.
-                  </p>
-                </div>
-
-                <div className="grid gap-8 md:grid-cols-2">
-                  <div className="p-6 rounded-xl border border-neutral-200/50 bg-white/80 backdrop-blur-sm dark:border-neutral-800/50 dark:bg-neutral-950/80 shadow-sm overflow-hidden">
-                    <RatioChart />
-                  </div>
-                  <div className="p-6 rounded-xl border border-neutral-200/50 bg-white/80 backdrop-blur-sm dark:border-neutral-800/50 dark:bg-neutral-950/80 shadow-sm overflow-hidden">
-                    <TimingChart />
-                  </div>
-                </div>
-              </div>
+            <TabsContent value="learn" className="focus-visible:outline-none">
+              <ExtractionTheory onNavigateToCalculator={() => setActiveTab("calculator")} />
             </TabsContent>
           </div>
         </Tabs>
@@ -123,7 +159,8 @@ export default function Home() {
             onClick={() => setActiveTab("guide")}
             className="flex items-center gap-2 px-6 py-3 bg-orange-600/90 backdrop-blur-md text-white rounded-full font-medium transition-all hover:bg-orange-700/90 active:scale-95 dark:bg-orange-400/90 dark:text-neutral-900 dark:hover:bg-orange-500/90 shadow-xl hover:shadow-2xl border border-orange-500/20 dark:border-orange-300/20"
           >
-            <span>Start Brewing Guide</span>
+            <span className="sm:hidden">Start</span>
+            <span className="hidden sm:inline">Start Brewing Guide</span>
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>

@@ -5,8 +5,12 @@ import { Slider } from "@/components/ui/slider"
 import { BREWING_METHODS } from "@/lib/brewing-data"
 import { getSortedBrewingMethods } from "@/lib/brewing-utils"
 import { useFavorites } from "@/hooks/useFavorites"
+import { useUnits } from "@/hooks/useUnits"
+import { getSliderConfig } from "@/lib/slider-config"
+import { formatCoffee, formatWater } from "@/lib/unit-conversion"
+import { generateShareUrl } from "@/lib/recipe-encoder"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Droplets, Coffee, Clock, Star } from "lucide-react"
+import { Droplets, Coffee, Clock, Star, Share2 } from "lucide-react"
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from "recharts"
 import { TimelineChart } from "@/components/charts/TimelineChart"
 import { cn } from "@/lib/utils"
@@ -22,10 +26,12 @@ interface RatioCalculatorProps {
   calculatorState: CalculatorState;
   onCalculatorStateChange: (state: CalculatorState) => void;
   onNavigateToGuide: () => void;
+  onNavigateToLearn?: () => void;
 }
 
-export function RatioCalculator({ calculatorState, onCalculatorStateChange, onNavigateToGuide }: RatioCalculatorProps) {
+export function RatioCalculator({ calculatorState, onCalculatorStateChange, onNavigateToGuide, onNavigateToLearn }: RatioCalculatorProps) {
   const { favorites, toggleFavorite, isFavorite } = useFavorites()
+  const { useImperial } = useUnits()
   const sortedMethods = getSortedBrewingMethods(favorites)
 
   const [selectedMethodId, setSelectedMethodId] = useState(calculatorState.methodId)
@@ -34,6 +40,7 @@ export function RatioCalculator({ calculatorState, onCalculatorStateChange, onNa
 
   const [coffeeAmount, setCoffeeAmount] = useState(calculatorState.coffeeAmount)
   const [ratio, setRatio] = useState(calculatorState.ratio)
+  const [scaleMultiplier, setScaleMultiplier] = useState(1)
 
   // Update parent state when local state changes
   useEffect(() => {
@@ -49,33 +56,109 @@ export function RatioCalculator({ calculatorState, onCalculatorStateChange, onNa
     // Reset defaults when method changes
     setSelectedTechniqueIndex(0)
     const defaultTechnique = selectedMethod.techniques[0]
-    setCoffeeAmount(defaultTechnique.defaultCoffeeAmount)
-    setRatio(defaultTechnique.ratio)
-  }, [selectedMethodId])
+    const config = getSliderConfig(selectedMethodId)
+
+    // Clamp values to new slider ranges
+    const clampedCoffee = Math.max(
+      config.coffee.min,
+      Math.min(config.coffee.max, defaultTechnique.defaultCoffeeAmount)
+    )
+    const clampedRatio = Math.max(
+      config.ratio.min,
+      Math.min(config.ratio.max, defaultTechnique.ratio)
+    )
+
+    setCoffeeAmount(clampedCoffee)
+    setRatio(clampedRatio)
+  }, [selectedMethodId, selectedMethod])
 
   useEffect(() => {
     // Update defaults when technique changes within the same method
     const technique = selectedMethod.techniques[selectedTechniqueIndex]
     if (technique) {
-      setCoffeeAmount(technique.defaultCoffeeAmount)
-      setRatio(technique.ratio)
-    }
-  }, [selectedTechniqueIndex, selectedMethodId])
+      const config = getSliderConfig(selectedMethodId)
 
-  const waterAmount = Math.round(coffeeAmount * ratio)
+      // Clamp values to slider ranges
+      const clampedCoffee = Math.max(
+        config.coffee.min,
+        Math.min(config.coffee.max, technique.defaultCoffeeAmount)
+      )
+      const clampedRatio = Math.max(
+        config.ratio.min,
+        Math.min(config.ratio.max, technique.ratio)
+      )
+
+      setCoffeeAmount(clampedCoffee)
+      setRatio(clampedRatio)
+    }
+  }, [selectedTechniqueIndex, selectedMethodId, selectedMethod])
+
+  // Apply scaling
+  const scaledCoffeeAmount = coffeeAmount * scaleMultiplier
+  const scaledWaterAmount = Math.round(scaledCoffeeAmount * ratio)
+
+  // Get smart slider configuration for current method
+  const sliderConfig = getSliderConfig(selectedMethodId)
 
   const chartData = [
-    { name: "Coffee", value: coffeeAmount, color: "#f97316" }, // orange-500
-    { name: "Water", value: waterAmount, color: "#ffffff" }, // white
+    { name: "Coffee", value: scaledCoffeeAmount, color: "#f97316" }, // orange-500
+    { name: "Water", value: scaledWaterAmount, color: "#ffffff" }, // white
   ]
+
+  const handleShare = async () => {
+    const shareUrl = generateShareUrl({
+      methodId: selectedMethodId,
+      techniqueIndex: selectedTechniqueIndex,
+      coffeeAmount,
+      ratio,
+    });
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      // Show a simple toast/notification
+      const button = document.activeElement as HTMLElement;
+      const originalText = button.textContent;
+      button.textContent = "Copied!";
+      setTimeout(() => {
+        button.textContent = originalText;
+      }, 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
 
   return (
     <div className="w-full max-w-4xl mx-auto p-4 space-y-8">
       <div className="text-center space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Ratio Calculator</h2>
+        <div className="flex items-center justify-center gap-3">
+          <h2 className="text-3xl font-bold tracking-tight">Ratio Calculator</h2>
+          <button
+            onClick={handleShare}
+            className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+            aria-label="Share recipe"
+            title="Copy recipe link"
+          >
+            <Share2 className="h-5 w-5 text-neutral-500 hover:text-orange-500 dark:text-neutral-400 dark:hover:text-orange-400" />
+          </button>
+        </div>
         <p className="text-neutral-500 dark:text-neutral-400">
           Dial in your perfect brew ratio.
         </p>
+        <div className="flex items-center justify-center gap-2 text-xs text-neutral-400 dark:text-neutral-500 mt-2">
+          <span>Best with: {selectedMethod.techniques[selectedTechniqueIndex]?.grindSize || 'Medium-Fine'} grind, medium to light roasts.</span>
+          {onNavigateToLearn && (
+            <a
+              href="#learn"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigateToLearn();
+              }}
+              className="text-orange-600 dark:text-orange-400 hover:underline"
+            >
+              Learn more →
+            </a>
+          )}
+        </div>
       </div>
 
       <Tabs value={selectedMethodId} onValueChange={setSelectedMethodId} className="w-full">
@@ -122,7 +205,7 @@ export function RatioCalculator({ calculatorState, onCalculatorStateChange, onNa
               onClick={() => setSelectedTechniqueIndex(idx)}
               className={`px-4 py-2 text-sm rounded-full border transition-all ${
                 selectedTechniqueIndex === idx
-                  ? "bg-orange-600 text-white border-orange-600 hover:bg-orange-700 dark:bg-orange-400 dark:text-neutral-900 dark:border-orange-400"
+                  ? "bg-white text-neutral-900 border-neutral-200 hover:bg-neutral-50 dark:bg-neutral-100 dark:text-neutral-900 dark:border-neutral-300"
                   : "bg-transparent border-neutral-200 hover:border-orange-200 dark:border-neutral-800 dark:hover:border-orange-900/30"
               }`}
             >
@@ -131,6 +214,25 @@ export function RatioCalculator({ calculatorState, onCalculatorStateChange, onNa
           ))}
         </div>
       )}
+
+      {/* Recipe Scaling - Compact */}
+      <div className="flex items-center justify-center gap-3 text-sm">
+        <span className="text-neutral-500 dark:text-neutral-400">Scale:</span>
+        <div className="flex items-center gap-2">
+          <Slider
+            value={[scaleMultiplier]}
+            onValueChange={(vals) => setScaleMultiplier(vals[0])}
+            min={0.5}
+            max={5}
+            step={0.5}
+            className="w-32 [&_.slider-track]:bg-orange-500/20 dark:[&_.slider-track]:bg-orange-500/20 [&_.slider-range]:bg-orange-500 dark:[&_.slider-range]:bg-orange-500 [&_.slider-thumb]:border-orange-500 dark:[&_.slider-thumb]:border-orange-500"
+          />
+          <span className="text-sm font-semibold tabular-nums w-10 text-right">{scaleMultiplier}x</span>
+        </div>
+        <span className="text-neutral-400 dark:text-neutral-500 text-xs">
+          ({Math.round(scaledWaterAmount / 300)} {Math.round(scaledWaterAmount / 300) === 1 ? 'cup' : 'cups'})
+        </span>
+      </div>
 
       <div className="grid gap-8 lg:grid-cols-3">
         {/* Left Column - Inputs */}
@@ -141,15 +243,15 @@ export function RatioCalculator({ calculatorState, onCalculatorStateChange, onNa
                 <Coffee className="h-5 w-5 text-amber-700" />
                 <label className="text-sm font-medium">Coffee Input</label>
               </div>
-              <span className="text-2xl font-bold tabular-nums">{coffeeAmount}g</span>
+              <span className="text-2xl font-bold tabular-nums">{formatCoffee(scaledCoffeeAmount, useImperial)}</span>
             </div>
             <div className="py-4 [&_.slider-track]:bg-orange-500/20 dark:[&_.slider-track]:bg-orange-500/20 [&_.slider-range]:bg-orange-500 dark:[&_.slider-range]:bg-orange-500 [&_.slider-thumb]:border-orange-500 dark:[&_.slider-thumb]:border-orange-500">
               <Slider
                 value={[coffeeAmount]}
                 onValueChange={(vals) => setCoffeeAmount(vals[0])}
-                min={5}
-                max={60}
-                step={1}
+                min={sliderConfig.coffee.min}
+                max={sliderConfig.coffee.max}
+                step={sliderConfig.coffee.step}
               />
             </div>
             <p className="text-xs text-neutral-500">
@@ -168,9 +270,9 @@ export function RatioCalculator({ calculatorState, onCalculatorStateChange, onNa
             <Slider
               value={[ratio]}
               onValueChange={(vals) => setRatio(vals[0])}
-              min={1}
-              max={25}
-              step={0.1}
+              min={sliderConfig.ratio.min}
+              max={sliderConfig.ratio.max}
+              step={sliderConfig.ratio.step}
               className="py-4"
             />
             <p className="text-xs text-neutral-500">
@@ -185,7 +287,7 @@ export function RatioCalculator({ calculatorState, onCalculatorStateChange, onNa
             <div className="text-center mb-6">
               <h3 className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">Target Output</h3>
               <div className="text-5xl font-bold tabular-nums text-orange-600 dark:text-orange-400">
-                {waterAmount}ml
+                {formatWater(scaledWaterAmount, useImperial)}
               </div>
               <p className="text-sm text-neutral-400 mt-1">Total Water Weight</p>
             </div>
@@ -217,11 +319,11 @@ export function RatioCalculator({ calculatorState, onCalculatorStateChange, onNa
               <div className="flex gap-4 text-xs font-medium">
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-                <span>Coffee ({coffeeAmount}g)</span>
+                <span>Coffee ({formatCoffee(scaledCoffeeAmount, useImperial)})</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 rounded-full bg-white border border-neutral-300 dark:border-neutral-700"></div>
-                <span>Water ({waterAmount}g)</span>
+                <span>Water ({formatWater(scaledWaterAmount, useImperial)})</span>
               </div>
             </div>
           </div>
@@ -277,7 +379,7 @@ export function RatioCalculator({ calculatorState, onCalculatorStateChange, onNa
           <div className="p-6 rounded-xl border border-neutral-200/50 bg-white/80 backdrop-blur-sm dark:border-neutral-800/50 dark:bg-neutral-950/80 shadow-sm">
             <TimelineChart
               technique={selectedMethod.techniques[selectedTechniqueIndex]}
-              totalWater={waterAmount}
+              totalWater={scaledWaterAmount}
             />
           </div>
         </div>
