@@ -32,17 +32,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="light">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="light"
-          enableSystem={false}
+          defaultTheme="dark"
+          enableSystem={true}
           disableTransitionOnChange
-          storageKey="theme"
-          forcedTheme={undefined}
+          storageKey="bitter-grind-theme"
         >
           <TooltipProvider>
             {children}

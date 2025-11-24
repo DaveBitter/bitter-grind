@@ -26,11 +26,12 @@ export function ModeToggle() {
   }
 
   const toggleTheme = () => {
-    // Since enableSystem is false, theme will always be "light" or "dark"
-    setTheme(theme === "dark" ? "light" : "dark")
+    // Use resolvedTheme to handle system preference
+    const currentTheme = resolvedTheme || theme
+    setTheme(currentTheme === "dark" ? "light" : "dark")
   }
 
-  const isDark = theme === "dark"
+  const isDark = (resolvedTheme || theme) === "dark"
 
   return (
     <button
