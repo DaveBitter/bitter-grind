@@ -237,28 +237,66 @@ export function RatioCalculator({ calculatorState, onCalculatorStateChange, onNa
               </div>
               <div className="text-6xl font-bold tabular-nums text-neutral-900 dark:text-neutral-50 mb-2">
                 {(() => {
-                  const mins = Math.floor(selectedMethod.techniques[selectedTechniqueIndex].totalTime / 60);
-                  const secs = Math.floor(selectedMethod.techniques[selectedTechniqueIndex].totalTime % 60);
+                  const totalSeconds = selectedMethod.techniques[selectedTechniqueIndex].totalTime;
+                  const hours = Math.floor(totalSeconds / 3600);
+                  const mins = Math.floor((totalSeconds % 3600) / 60);
+                  const secs = Math.floor(totalSeconds % 60);
+
+                  // For Cold Brew, show range (12-24h)
+                  if (selectedMethodId === "cold-brew") {
+                    return "12-24h";
+                  }
+
+                  // For times > 1 hour, show hours:minutes format
+                  if (hours > 0) {
+                    return `${hours}:${mins.toString().padStart(2, '0')}`;
+                  }
+
+                  // For times < 1 hour, show minutes:seconds
                   return `${mins}:${secs.toString().padStart(2, '0')}`;
                 })()}
               </div>
               <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                Total extraction time
+                {["cold-brew", "french-press", "aeropress", "clever-dripper"].includes(selectedMethodId)
+                  ? "Steeping time"
+                  : "Total extraction time"}
               </p>
+              {selectedMethodId === "cold-brew" && (
+                <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1 italic">
+                  Set & forget
+                </p>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Full Width Timeline Chart */}
-      <div className="w-full mt-8">
-        <div className="p-6 rounded-xl border border-neutral-200/50 bg-white/80 backdrop-blur-sm dark:border-neutral-800/50 dark:bg-neutral-950/80 shadow-sm">
-          <TimelineChart
-            technique={selectedMethod.techniques[selectedTechniqueIndex]}
-            totalWater={waterAmount}
-          />
+      {/* Full Width Timeline Chart - Hide for immersion methods */}
+      {!["cold-brew", "french-press", "aeropress", "clever-dripper"].includes(selectedMethodId) && (
+        <div className="w-full mt-8">
+          <div className="p-6 rounded-xl border border-neutral-200/50 bg-white/80 backdrop-blur-sm dark:border-neutral-800/50 dark:bg-neutral-950/80 shadow-sm">
+            <TimelineChart
+              technique={selectedMethod.techniques[selectedTechniqueIndex]}
+              totalWater={waterAmount}
+            />
+          </div>
         </div>
-      </div>
+      )}
+      {["cold-brew", "french-press", "aeropress", "clever-dripper"].includes(selectedMethodId) && (
+        <div className="w-full mt-8">
+          <div className="p-6 rounded-xl border border-neutral-200/50 bg-white/80 backdrop-blur-sm dark:border-neutral-800/50 dark:bg-neutral-950/80 shadow-sm">
+            <div className="text-center py-8">
+              <p className="text-neutral-500 dark:text-neutral-400 text-sm">
+                {selectedMethodId === "cold-brew"
+                  ? "All water is combined at the start, then the mixture steeps passively for 12-24 hours."
+                  : selectedMethodId === "clever-dripper"
+                  ? "All water is added at once for full immersion, then the valve opens for filtered drawdown."
+                  : "All water is added at once for full immersion brewing, then steeps passively before serving."}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )
