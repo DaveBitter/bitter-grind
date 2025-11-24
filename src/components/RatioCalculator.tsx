@@ -143,7 +143,7 @@ export function RatioCalculator({ calculatorState, onCalculatorStateChange, onNa
               </div>
               <span className="text-2xl font-bold tabular-nums">{coffeeAmount}g</span>
             </div>
-            <div className="py-4 [&>div>div:first-child]:bg-orange-900/20 [&>div>div:first-child>div]:bg-orange-800 [&>div>div:last-child]:border-orange-800 dark:[&>div>div:first-child]:bg-orange-700/20 dark:[&>div>div:first-child>div]:bg-orange-700">
+            <div className="py-4 [&_.slider-track]:bg-orange-900/20 dark:[&_.slider-track]:bg-orange-700/20 [&_.slider-range]:bg-orange-800 dark:[&_.slider-range]:bg-orange-700 [&_.slider-thumb]:border-orange-800 dark:[&_.slider-thumb]:border-orange-700">
               <Slider
                 value={[coffeeAmount]}
                 onValueChange={(vals) => setCoffeeAmount(vals[0])}
